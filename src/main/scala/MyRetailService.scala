@@ -1,7 +1,7 @@
 package myretail
 
 import akka.actor.ActorSystem
-import org.json4s.DefaultFormats
+import akka.http.scaladsl.model.headers.Accept
 import spray.json.{DefaultJsonProtocol, JsObject}
 //import org.json4s._
 //import org.json4s.native.JsonMethods._
@@ -73,29 +73,27 @@ trait ProductServices extends DefaultJsonProtocol {
   }
 
   lazy val nameServiceFlow: Flow[HttpRequest, HttpResponse, Any] =
-    Http().outgoingConnectionHttps(config.getString("services.target-api.host"), config.getInt("services.target-api.port"))
+    Http().outgoingConnection(config.getString("services.target-api.host"), config.getInt("services.target-api.port"))
 
   def targetApiRequest(request: HttpRequest): Future[HttpResponse] =
     Source.single(request).via(nameServiceFlow).runWith(Sink.head)
 
   def getProductName(id: Long): Future[Either[String, String]] = {
-    /*targetApiRequest(RequestBuilding.Get(s"products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz")).flatMap {
-      response =>
+    /*targetApiRequest(RequestBuilding.Get(s"products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz").withHeaders(Vector(Accept.("application/json")))).flatMap { response => {
       response.status match {
-        case OK => Unmarshal(response.entity).to[JsObject].map(json => Right(extractProductName(json)))
+        case OK => Unmarshal(response.entity).to[String].map(json => Right(extractProductName(json)))
         case BadRequest => Future.successful(Left(s"$id: invalid Id"))
         case _ => Unmarshal(response.entity).to[String].flatMap { entity =>
           val error = s"Target API request failed with status ${response.status}:  $entity"
           Future.failed(new IOException(error))
-        }
+        }}
       }
     }*/
 
     Http().singleRequest(HttpRequest(uri = s"${config.getString("services.target-api.scheme")}://${config.getString("services.target-api.host")}/products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz"))
       .flatMap(response => Unmarshal(response.entity).to[String])
       .map(json => extractProductName(json))
-          //.map(json => json.product_composite_response.items.head.online_description.value)
-        .map(Right(_))
+      .map(Right(_))
   }
 
   def getProductPrice(id: Long): Future[Either[String, Price]] = {
@@ -105,10 +103,8 @@ trait ProductServices extends DefaultJsonProtocol {
   }
 
   def extractProductName(json: String): String = {
-    implicit val formats = DefaultFormats
     val items = Json.parse(json) \\ "items"
-    //jsValue.product_composite_response.items.head.online_description.value
-    (items.head \ "online_description" \ "value").as[String]
+    (items.head.head \ "online_description" \ "value").as[String]
   }
 }
 
