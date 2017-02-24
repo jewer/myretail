@@ -1,4 +1,4 @@
-/*package myretail
+package myretail
 
 import akka.event.NoLogging
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -39,4 +39,4 @@ class ProductServicesSpec extends FlatSpec with Matchers with ScalatestRouteTest
 
     parsed shouldBe "The Big Lebowski (Blu-ray)"
   }
-}*/
+}
