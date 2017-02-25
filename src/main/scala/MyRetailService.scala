@@ -1,40 +1,30 @@
 package myretail
 
+
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.headers.Accept
-import spray.json.{DefaultJsonProtocol, JsObject}
-//import org.json4s._
-//import org.json4s.native.JsonMethods._
+import spray.json.DefaultJsonProtocol
 import play.api.libs.json._
-//import jsonBackends.json4s._
-import akka.event.{LoggingAdapter, Logging}
-//import play.api.libs.json._
+import akka.event.{Logging, LoggingAdapter}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.{HttpResponse, HttpRequest}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.PathMatchers.LongNumber
-
 import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import java.io.IOException
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
-case class Price(value: Double, currency: String)
-case class Product(id: Long, name: String, price: Price)
-
-trait ProductServices extends DefaultJsonProtocol {
+trait ProductJsonSupport extends DefaultJsonProtocol {
   implicit val priceFormat = jsonFormat2(Price.apply)
   implicit val productFormat = jsonFormat3(Product.apply)
+}
 
+trait ProductServices extends ProductJsonSupport {
   implicit val system: ActorSystem
 
   implicit def executor: ExecutionContextExecutor
@@ -45,6 +35,8 @@ trait ProductServices extends DefaultJsonProtocol {
 
   val logger: LoggingAdapter
 
+  val redis: IRedisProxy = new RedisProxy
+
   val routes = {
     logRequestResult("myretail") {
       pathPrefix("product") {
@@ -53,14 +45,7 @@ trait ProductServices extends DefaultJsonProtocol {
             getProduct(id)
           }
         }
-      } ~
-        pathPrefix("name") {
-          (get & path(LongNumber)) { id =>
-            complete {
-              getProductName(id)
-            }
-          }
-        }
+      }
     }
   }
 
@@ -79,18 +64,7 @@ trait ProductServices extends DefaultJsonProtocol {
     Source.single(request).via(nameServiceFlow).runWith(Sink.head)
 
   def getProductName(id: Long): Future[Either[String, String]] = {
-    /*targetApiRequest(RequestBuilding.Get(s"products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz").withHeaders(Vector(Accept.("application/json")))).flatMap { response => {
-      response.status match {
-        case OK => Unmarshal(response.entity).to[String].map(json => Right(extractProductName(json)))
-        case BadRequest => Future.successful(Left(s"$id: invalid Id"))
-        case _ => Unmarshal(response.entity).to[String].flatMap { entity =>
-          val error = s"Target API request failed with status ${response.status}:  $entity"
-          Future.failed(new IOException(error))
-        }}
-      }
-    }*/
-
-    Http().singleRequest(HttpRequest(uri = s"${config.getString("services.target-api.scheme")}://${config.getString("services.target-api.host")}/products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz"))
+    Http().singleRequest(HttpRequest(uri = s"${config.getString("services.target-product-api.scheme")}://${config.getString("services.target-product-api.host")}/products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz"))
       .flatMap(response => Unmarshal(response.entity).to[String])
       .map(json => extractProductName(json))
       .map(Right(_))
@@ -98,7 +72,10 @@ trait ProductServices extends DefaultJsonProtocol {
 
   def getProductPrice(id: Long): Future[Either[String, Price]] = {
     Future {
-      Right(Price(101, "USD"))
+      redis.getHashMap(s"product:$id")
+        .map(values => new Price(values.get("price").map(_.toDouble).getOrElse(0.0), values.get("currency").getOrElse("USD")))
+        .map(Right(_))
+        .getOrElse(Left(s"Unable to find price for product: $id"))
     }
   }
 
