@@ -13,15 +13,17 @@ libraryDependencies ++= {
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
-    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
+
 
     "com.typesafe.play" %% "play-json" % "2.5.12",
     "org.redis" %% "scala-redis" % "0.0.25",
 
-    "org.scalatest"     %% "scalatest" % "3.0.1" % "test"
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
+    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "test",
+    "org.scalatest"     %% "scalatest" % "3.0.1" % "test",
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test"
   )
 }
 

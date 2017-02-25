@@ -1,14 +1,14 @@
 #myRetail Case Study
 
 ##Background
-For this case study, I wanted to challenge myself to pick up something I'm vaguely familiar with (I've worked on Spray APIs before) and see if I could get something elegant (and working) up in a reasonable amount of time.
+For this case study, I wanted to challenge myself by building a microservice with something I'm vaguely familiar with (I've worked on Spray APIs before) and see if I could get something elegant (and working) up in a reasonable amount of time.
 
-##Tech/Design choices
-I *love* the Akka dsl for defining routes.  It's not overly complex but it's still very descriptive.  Plus, I haven't been able to do any scala for 6 months and I really wanted to jump back in :-).
+##Setup and Running
+Just because this involves using an outside database, I really should do a docker composition.  But, in case I don't get time, and you're on OSX:
 
-
-##Pros
-
-
-##Cons
-
+From root of repository:
+1. `brew install sbt curl redis`
+2. `sbt test` to run the specs
+3. `redis-server` to start the pricing db service
+4. `sbt run` to start the server
+5. `./examples.sh` to run some curl commands
