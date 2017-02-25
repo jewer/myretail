@@ -7,6 +7,7 @@ For this case study, I wanted to challenge myself by building a microservice wit
 Just because this involves using an outside database, I really should do a docker composition.  But, in case I don't get time, and you're on OSX:
 
 From root of repository:
+
 1. `brew install sbt curl redis`
 2. `sbt test` to run the specs
 3. `redis-server` to start the pricing db service
