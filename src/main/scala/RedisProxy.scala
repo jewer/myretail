@@ -1,4 +1,5 @@
 package myretail
+
 import com.redis._
 import com.typesafe.config.ConfigFactory
 

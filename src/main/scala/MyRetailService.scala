@@ -44,6 +44,13 @@ trait ProductServices extends ProductJsonSupport {
           complete {
             getProduct(id)
           }
+        } ~
+        (put & path(LongNumber)) { id =>
+          entity(as[Price]) { price =>
+            complete {
+              updateProductPrice(id, price).map(_ => getProduct(id))
+            }
+          }
         }
       }
     }
@@ -70,10 +77,17 @@ trait ProductServices extends ProductJsonSupport {
       .map(Right(_))
   }
 
+  def updateProductPrice(id: Long, updatedPrice: Price): Future[Unit] = {
+    Future {
+      val newValues = Vector(("currency", updatedPrice.currency), ("value", updatedPrice.value))
+      redis.setValues(s"product:$id:price", newValues)
+    }
+  }
+
   def getProductPrice(id: Long): Future[Either[String, Price]] = {
     Future {
-      redis.getHashMap(s"product:$id")
-        .map(values => new Price(values.get("price").map(_.toDouble).getOrElse(0.0), values.get("currency").getOrElse("USD")))
+      redis.getHashMap(s"product:$id:price")
+        .map(values => new Price(values.get("value").map(_.toDouble).getOrElse(0.0), values.get("currency").getOrElse("USD")))
         .map(Right(_))
         .getOrElse(Left(s"Unable to find price for product: $id"))
     }
