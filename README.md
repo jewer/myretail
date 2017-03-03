@@ -16,6 +16,7 @@ From root of repository:
 ###If you just want to run the server as a docker image:
 
 1. `docker-compose build` (it'll take a while to build the redis/sbt images)
-2. `docker-compose up` (it'll take a while to start sbt)
+2. change the IP address in `src/main/resources/application.conf` to the host machine's IP.  There's a clever way to expose this in docker-compose but I never figured it out.
+3. `docker-compose up` (it'll take a while to start sbt)
 
 Then run `./examples.sh` to see adding a price and getting a product.
