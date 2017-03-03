@@ -1,0 +1,10 @@
+myretail:
+    build: .
+    links:
+        - redis
+    ports:
+        - "1337:1337"
+redis:
+    image: redis
+    ports:
+        - "6379"
