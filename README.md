@@ -13,6 +13,7 @@ From root of repository:
 3. `redis-server` to start the pricing db service
 4. `sbt run` to start the server
 
+
 ###If you just want to run the server as a docker image:
 
 1. change the IP address in `src/main/resources/application.conf` to the host machine's IP.  There's a clever way to expose this in docker-compose but I never figured it out.
