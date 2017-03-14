@@ -18,6 +18,6 @@ From root of repository:
 
 1. change the IP address in `src/main/resources/application.conf` to the host machine's IP.  There's a clever way to expose this in docker-compose but I never figured it out.
 2. `docker-compose build` (it'll take a while to build the redis/sbt images)
-3. `docker-compose up` (it'll take a while to start sbt)
+3. `docker-compose up` (it'll take a while to start sbt, wait until you see sbt say "Successfully bound to /0:0:0:0:0:0:0:0:1337")
 
 Then run `./examples.sh` to see adding a price and getting a product.

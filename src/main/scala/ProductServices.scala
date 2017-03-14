@@ -50,7 +50,7 @@ trait ProductServices extends ProductJsonSupport {
         (put & path(LongNumber)) { id =>
           entity(as[Price]) { price =>
             complete {
-              updateProductPrice(id, price).map(_ => getProduct(id))
+              updateProductPrice(id, price).map(_ => getProduct(id))  //probably wouldn't do this in a prod setting but good for demo?
             }
           }
         }
@@ -89,7 +89,7 @@ trait ProductServices extends ProductJsonSupport {
    */
   def updateProductPrice(id: Long, updatedPrice: Price): Future[Unit] = {
     Future {
-      val newValues = Vector(("currency", updatedPrice.currency), ("value", updatedPrice.value))
+      val newValues = Vector(("currency_code", updatedPrice.currency_code), ("value", updatedPrice.value))
       redis.setValues(s"product:$id:price", newValues)
     }
   }
@@ -100,7 +100,7 @@ trait ProductServices extends ProductJsonSupport {
   def getProductPrice(id: Long): Future[Either[String, Price]] = {
     Future {
       redis.getValues(s"product:$id:price").map(values => {
-        (values.get("value").map(_.toDouble), values.get("currency")) match {
+        (values.get("value").map(_.toDouble), values.get("currency_code")) match {
           case (Some(v), Some(c)) => Right(Price(v, c))
           case _ => Left(s"Unable to find price for product: $id")
         }
@@ -109,7 +109,7 @@ trait ProductServices extends ProductJsonSupport {
   }
 
   /*
-  Reads the json from the Target API then decides if it's valid or is in error (since the Target API always returns 200)
+  Reads the json from the Target API then decides if it's valid or is in error (since the Target API always returns 200) ;-)
    */
   def extractProductName(json: String): Either[String, String] = {
     val parsed = Json.parse(json)

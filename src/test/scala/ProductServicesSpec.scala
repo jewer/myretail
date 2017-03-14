@@ -45,7 +45,7 @@ class ProductServicesSpec extends FlatSpec with Matchers with ScalatestRouteTest
   it should "get a product and price from dependent services" in {
     val expectedProduct = Product(123, "The Big Lebowski (Blu-ray)", Price(100, "USD"))
 
-    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency" -> "USD")))
+    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency_code" -> "USD")))
     (mockApiProxy.singleRequest(_: HttpRequest)(_: ActorSystem, _: Materializer)).expects(*, *, *).returning(Future{validProductResponse})
 
     Get("/product/123") ~> routes ~> check {
@@ -55,7 +55,7 @@ class ProductServicesSpec extends FlatSpec with Matchers with ScalatestRouteTest
   }
 
   it should "return bad request if product does not exist in API" in {
-    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency" -> "USD")))
+    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency_code" -> "USD")))
     (mockApiProxy.singleRequest(_: HttpRequest)(_: ActorSystem, _: Materializer)).expects(*, *, *).returning(Future{invalidProductResponse})
 
     Get("/product/123") ~> routes ~> check {
@@ -75,7 +75,7 @@ class ProductServicesSpec extends FlatSpec with Matchers with ScalatestRouteTest
   }
 
   it should "return bad request if price value does not exist in db" in {
-    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("currency" -> "USD")))
+    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("currency_code" -> "USD")))
     (mockApiProxy.singleRequest(_: HttpRequest)(_: ActorSystem, _: Materializer)).expects(*, *, *).returning(Future{validProductResponse})
 
     Get("/product/123") ~> routes ~> check {
@@ -87,8 +87,8 @@ class ProductServicesSpec extends FlatSpec with Matchers with ScalatestRouteTest
   it should "update a product price" in {
     val expectedProduct = Product(123, "The Big Lebowski (Blu-ray)", Price(100, "USD"))
 
-    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency" -> "USD")))
-    (mockRedis.setValues _).expects("product:123:price", Vector(("currency", "MXP"), ("value", 200)))
+    (mockRedis.getValues _).expects("product:123:price").returning(Some(Map("value" -> "100", "currency_code" -> "USD")))
+    (mockRedis.setValues _).expects("product:123:price", Vector(("currency_code", "MXP"), ("value", 200)))
     (mockApiProxy.singleRequest(_: HttpRequest)(_: ActorSystem, _: Materializer)).expects(*, *, *).returning(Future{HttpResponse(200, entity=validProductJson)})
 
     Put("/product/123", Price(200, "MXP")) ~> routes ~> check {
