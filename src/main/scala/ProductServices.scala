@@ -62,7 +62,7 @@ trait ProductServices extends ProductJsonSupport {
   Composes futures of 1) get product name and 2) get pricing to create result or error, if either have failed.
    */
   def getProduct(id: Long): Future[ToResponseMarshallable] = {
-    getProductName(id).zip(getProductPrice(id)).map[ToResponseMarshallable] {
+    getProductName(id).zip(getProductPrice(id)).map[ToResponseMarshallable] {  // probably wouldn't do a zip in prod. short-circuit if no product found?
       case (Right(name), Right(price)) => Product(id, name, price)
       case (Left(error), _) => BadRequest -> new Error(error)
       case (_, Left(error)) => BadRequest -> new Error(error)
