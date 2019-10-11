@@ -11,7 +11,7 @@ From root of repository:
 1. `brew install sbt curl redis`
 2. `sbt test` to run the specs
 3. `redis-server` to start the pricing db service
-4. `sbt run` to start the server
+4. `sbt run` to start the server  (or `redis-server & sbt run` to run in parallel in same terminal window)
 
 
 ### If you just want to run the server as a docker image:
