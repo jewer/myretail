@@ -16,6 +16,8 @@ class RedisProxy extends IRedisProxy {
 
 trait IRedisProxy {
   def getValues(key: String): Option[Map[String, String]]
+
   def setValue(key: String, subKey: String, value: Any)
+
   def setValues(key: String, values: Iterable[(String, Any)])
 }

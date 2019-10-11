@@ -2,33 +2,35 @@ package myretail
 
 import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
-
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.PathMatchers.LongNumber
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
 import com.typesafe.config.Config
-import play.api.libs.json.Json
-import spray.json.DefaultJsonProtocol
+import play.api.libs.json.{JsLookupResult, Json}
+import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.{Failure, Success, Try}
 
 trait ProductJsonSupport extends DefaultJsonProtocol {
-  implicit val priceFormat = jsonFormat2(Price.apply)
-  implicit val productFormat = jsonFormat3(Product.apply)
-  implicit val errorFormat = jsonFormat1(Error.apply)
+  implicit val priceFormat: RootJsonFormat[Price] = jsonFormat2(Price.apply)
+  implicit val productFormat: RootJsonFormat[Product] = jsonFormat3(Product.apply)
+  implicit val errorFormat: RootJsonFormat[Error] = jsonFormat1(Error.apply)
 }
 
 trait ProductServices extends ProductJsonSupport {
   implicit val system: ActorSystem
+
   implicit def executor: ExecutionContextExecutor
+
   implicit val materializer: Materializer
 
   def config: Config
@@ -39,7 +41,7 @@ trait ProductServices extends ProductJsonSupport {
 
   val apiProxy: IApiProxy
 
-  val routes = {
+  val routes: Route = {
     logRequestResult("myretail") {
       pathPrefix("product") {
         (get & path(LongNumber)) { id =>
@@ -47,13 +49,13 @@ trait ProductServices extends ProductJsonSupport {
             getProduct(id)
           }
         } ~
-        (put & path(LongNumber)) { id =>
-          entity(as[Price]) { price =>
-            complete {
-              updateProductPrice(id, price).map(_ => getProduct(id))  //probably wouldn't do this in a prod setting but good for demo?
+          (put & path(LongNumber)) { id =>
+            entity(as[Price]) { price =>
+              complete {
+                updateProductPrice(id, price).map(_ => getProduct(id)) //probably wouldn't do this in a prod setting but good for demo?
+              }
             }
           }
-        }
       }
     }
   }
@@ -62,10 +64,10 @@ trait ProductServices extends ProductJsonSupport {
   Composes futures of 1) get product name and 2) get pricing to create result or error, if either have failed.
    */
   def getProduct(id: Long): Future[ToResponseMarshallable] = {
-    getProductName(id).zip(getProductPrice(id)).map[ToResponseMarshallable] {  // probably wouldn't do a zip in prod. short-circuit if no product found?
+    getProductName(id).zip(getProductPrice(id)).map[ToResponseMarshallable] { // probably wouldn't do a zip in prod. short-circuit if no product found?
       case (Right(name), Right(price)) => Product(id, name, price)
-      case (Left(error), _) => BadRequest -> new Error(error)
-      case (_, Left(error)) => BadRequest -> new Error(error)
+      case (Left(error), _) => BadRequest -> Error(error)
+      case (_, Left(error)) => BadRequest -> Error(error)
     }
   }
 
@@ -79,7 +81,7 @@ trait ProductServices extends ProductJsonSupport {
   Calls the target API in order to get product name information.
    */
   def getProductName(id: Long): Future[Either[String, String]] = {
-    apiProxy.singleRequest(HttpRequest(uri = s"${config.getString("services.target-product-api.scheme")}://${config.getString("services.target-product-api.host")}/products/v3/$id?fields=descriptions&id_type=TCIN&key=43cJWpLjH8Z8oR18KdrZDBKAgLLQKJjz"))
+    apiProxy.singleRequest(HttpRequest(uri = s"${config.getString("services.target-product-api.scheme")}://${config.getString("services.target-product-api.host")}/v2/pdp/tcin/$id?excludes=taxonomy,price,promotion,bulk_ship,rating_and_review_reviews,rating_and_review_statistics,question_answer_statistics"))
       .flatMap(response => Unmarshal(response.entity).to[String])
       .map(json => extractProductName(json))
   }
@@ -113,12 +115,15 @@ trait ProductServices extends ProductJsonSupport {
    */
   def extractProductName(json: String): Either[String, String] = {
     val parsed = Json.parse(json)
-    val errors = parsed \\ "errors"
-    if(errors.size > 0){
-      Left(errors.map(e => (e \\ "message").map(_.as[String]).mkString(",")).mkString(","))
-    }else{
-      val items = Json.parse(json) \\ "items"
-      Right((items.head.head \ "online_description" \ "value").as[String])
+    val item: Try[JsLookupResult] = Try(parsed \ "product" \ "item")
+    item.map(i => extractTitle(i)).getOrElse(Left("Unknown Parsing Error finding item"))
+  }
+
+
+  private def extractTitle(item: JsLookupResult): Either[String, String] = {
+    Try(item \ "product_description" \ "title") match {
+      case Failure(exception) => Left(s"Unknown Parsing Error finding title: $exception")
+      case Success(value) => Right(value.as[String])
     }
   }
 }
